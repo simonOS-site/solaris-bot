@@ -326,9 +326,7 @@ export class BotState {
         message.channel_id !== "1570329383414272042"
       ) {
         await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
-          content: "Please use this command in the Solaris server: https://discord.com/channels/1570325151910731827/1570329383414272042
-
-Need to join? https://discord.gg/h45g6JCwpM",
+          content: "Please use this command in the Solaris server: https://discord.com/channels/1570325151910731827/1570329383414272042\\n\\nNeed to join? https://discord.gg/h45g6JCwpM",
           message_reference: { message_id: message.id },
           allowed_mentions: { parse: [] }
         }).catch(() => {});
