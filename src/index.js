@@ -94,7 +94,8 @@ export default {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         action: subcommand?.name,
-        options: subcommand?.options ?? []
+        options: subcommand?.options ?? [],
+        userId: interaction.member?.user?.id ?? interaction.user?.id
       })
     });
     const payload = await result.json();
@@ -131,8 +132,8 @@ export class BotState {
     }
 
     if (url.pathname === "/command" && request.method === "POST") {
-      const { action, options } = await request.json();
-      return json(await this.handleAdminCommand(action, options));
+      const { action, options, userId } = await request.json();
+      return json(await this.handleAdminCommand(action, options, userId));
     }
 
     return new Response("Not found", { status: 404 });
@@ -146,11 +147,18 @@ export class BotState {
     await this.ctx.storage.put("links", links);
   }
 
-  async handleAdminCommand(action, options) {
+  async handleAdminCommand(action, options, userId) {
     const url = String(getOption(options, "url") ?? "").trim();
     const links = await this.readLinks();
 
     if (action === "add") {
+      const allowedAddUsers = new Set([
+        "1198867010361237584",
+        "1466633583715156100"
+      ]);
+      if (!allowedAddUsers.has(String(userId))) {
+        return { message: "You are not authorised to add links to Solaris Links." };
+      }
       if (!validUrl(url)) {
         return { message: "Please provide a valid HTTP(S) URL." };
       }
@@ -292,7 +300,17 @@ export class BotState {
       const message = packet.d;
       if (message.author?.bot || !message.content) return;
       if (message.content.trim().toLowerCase() !== "!sites") return;
-      if (message.channel_id !== "1570329383414272042") return;
+      if (
+        message.guild_id !== "1570325151910731827" ||
+        message.channel_id !== "1570329383414272042"
+      ) {
+        await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
+          content: "Please use this command in the Solaris server in #bot-commands.",
+          message_reference: { message_id: message.id },
+          allowed_mentions: { parse: [] }
+        }).catch(() => {});
+        return;
+      }
       try {
         await this.dmLinks(message.author.id);
         await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
