@@ -8,34 +8,28 @@ if (!token || !appId) {
 
 const commands = [{
   name: "links",
-  description: "Manage the server link directory",
+  description: "Manage the Solaris Links directory",
   options: [
     {
       type: 1,
       name: "add",
-      description: "Add a link to a category",
+      description: "Add a URL to Solaris Links",
       options: [
-        { type: 3, name: "category", description: "Category name", required: true },
-        { type: 3, name: "name", description: "Display name for the link", required: true },
         { type: 3, name: "url", description: "Full HTTP or HTTPS URL", required: true }
       ]
     },
     {
       type: 1,
       name: "remove",
-      description: "Remove a link from a category",
+      description: "Remove a URL from Solaris Links",
       options: [
-        { type: 3, name: "category", description: "Category name", required: true },
-        { type: 3, name: "name", description: "Display name of the link", required: true }
+        { type: 3, name: "url", description: "Full URL to remove", required: true }
       ]
     },
     {
       type: 1,
       name: "list",
-      description: "List saved links",
-      options: [
-        { type: 3, name: "category", description: "Optional category to filter by", required: false }
-      ]
+      description: "Show all URLs in Solaris Links"
     }
   ]
 }];
