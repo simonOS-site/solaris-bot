@@ -231,12 +231,24 @@ export class BotState {
       const ws = new WebSocket(gatewayUrl);
       this.socket = ws;
 
+      console.log("[gateway] Connecting to Discord");
+      ws.addEventListener("open", () => console.log("[gateway] WebSocket opened"));
       ws.addEventListener("message", event => {
-        this.onGatewayMessage(event.data).catch(() => this.scheduleReconnect());
+        this.onGatewayMessage(event.data).catch(error => {
+          console.error("[gateway] Message handler failed:", error?.stack || error);
+          this.scheduleReconnect();
+        });
       });
-      ws.addEventListener("close", () => this.scheduleReconnect());
-      ws.addEventListener("error", () => this.scheduleReconnect());
-    } catch {
+      ws.addEventListener("close", event => {
+        console.error("[gateway] WebSocket closed:", event.code, event.reason);
+        this.scheduleReconnect();
+      });
+      ws.addEventListener("error", event => {
+        console.error("[gateway] WebSocket error:", event?.message || event);
+        this.scheduleReconnect();
+      });
+    } catch (error) {
+      console.error("[gateway] Connection setup failed:", error?.stack || error);
       this.scheduleReconnect();
     }
   }
@@ -258,6 +270,7 @@ export class BotState {
     if (packet.s !== null && packet.s !== undefined) this.sequence = packet.s;
 
     if (packet.op === 10) {
+      console.log("[gateway] HELLO received");
       const interval = packet.d.heartbeat_interval;
       this.heartbeatTimer = setTimeout(() => this.heartbeat(interval), interval * 0.8);
       if (this.sessionId && this.resumeUrl) {
@@ -284,6 +297,7 @@ export class BotState {
     }
 
     if (packet.op === 7 || packet.op === 9) {
+      console.warn("[gateway] Reconnect requested, opcode:", packet.op, "resumable:", packet.d);
       this.scheduleReconnect();
       return;
     }
@@ -291,6 +305,7 @@ export class BotState {
     if (packet.op === 11) return;
 
     if (packet.t === "READY") {
+      console.log("[gateway] READY as", packet.d.user?.username);
       this.sessionId = packet.d.session_id;
       this.resumeUrl = packet.d.resume_gateway_url + "?v=10&encoding=json";
       return;
@@ -298,6 +313,12 @@ export class BotState {
 
     if (packet.t === "MESSAGE_CREATE") {
       const message = packet.d;
+      console.log("[gateway] MESSAGE_CREATE", {
+        guild_id: message.guild_id,
+        channel_id: message.channel_id,
+        author_bot: message.author?.bot,
+        content: message.content
+      });
       if (message.author?.bot || !message.content) return;
       if (message.content.trim().toLowerCase() !== "!sites") return;
       if (
@@ -305,7 +326,9 @@ export class BotState {
         message.channel_id !== "1570329383414272042"
       ) {
         await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
-          content: "Please use this command in the Solaris server: https://discord.com/channels/1570325151910731827/1570329383414272042\\n\\nNeed to join? https://discord.gg/h45g6JCwpM",
+          content: "Please use this command in the Solaris server: https://discord.com/channels/1570325151910731827/1570329383414272042
+
+Need to join? https://discord.gg/h45g6JCwpM",
           message_reference: { message_id: message.id },
           allowed_mentions: { parse: [] }
         }).catch(() => {});
