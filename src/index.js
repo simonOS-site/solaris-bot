@@ -298,7 +298,7 @@ export class BotState {
     }
 
     if (packet.op === 1) {
-      this.sendGateway({ op:  heartbeat: 1, d: this.sequence });
+      this.sendGateway({ op: 1, d: this.sequence });
       return;
     }
 
