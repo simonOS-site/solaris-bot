@@ -45,13 +45,20 @@ function getOption(options, name) {
   return options?.find(option => option.name === name)?.value;
 }
 
-function validUrl(value) {
+function normalizeUrl(value) {
   try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
+    const url = new URL(String(value).trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    // URL normalizes host casing and default ports; fragments do not identify a different resource.
+    url.hash = "";
+    return url.href;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function validUrl(value) {
+  return normalizeUrl(value) !== null;
 }
 
 export default {
@@ -173,7 +180,8 @@ export class BotState {
       if (!validUrl(url)) {
         return { message: "Please provide a valid HTTP(S) URL." };
       }
-      if (links.some(item => String(item.url).toLowerCase() === url.toLowerCase())) {
+      const normalizedNewUrl = normalizeUrl(url);
+      if (links.some(item => normalizeUrl(item.url) === normalizedNewUrl)) {
         return { message: "That URL is already in Solaris Links." };
       }
       links.push({ category: LINKS_CATEGORY, url });
