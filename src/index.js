@@ -291,9 +291,13 @@ export class BotState {
     if (packet.t === "MESSAGE_CREATE") {
       const message = packet.d;
       if (message.author?.bot || !message.content) return;
-      if (message.content.trim().toLowerCase() !== "!links") return;
+      if (message.content.trim().toLowerCase() !== "!sites") return;
       try {
         await this.dmLinks(message.author.id);
+        await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
+          content: "I sent you all the new domains!",
+          allowed_mentions: { parse: [] }
+        });
       } catch {
         await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
           content: "I couldn't DM you. Please enable direct messages from server members and try again.",
