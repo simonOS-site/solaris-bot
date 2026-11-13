@@ -296,6 +296,7 @@ export class BotState {
         await this.dmLinks(message.author.id);
         await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
           content: "I sent you all the new domains!",
+          message_reference: { message_id: message.id },
           allowed_mentions: { parse: [] }
         });
       } catch {
