@@ -1,6 +1,7 @@
 const DISCORD_API = "https://discord.com/api/v10";
 const EPHEMERAL = 64;
 const INTENTS = 1 | 512 | 32768; // GUILDS, GUILD_MESSAGES, MESSAGE_CONTENT
+const LINKS_CATEGORY = "Solaris Links:";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -146,49 +147,34 @@ export class BotState {
   }
 
   async handleAdminCommand(action, options) {
-    const category = String(getOption(options, "category") ?? "").trim();
-    const name = String(getOption(options, "name") ?? "").trim();
     const url = String(getOption(options, "url") ?? "").trim();
     const links = await this.readLinks();
 
     if (action === "add") {
-      if (!category || !name || !validUrl(url)) {
-        return { message: "Please provide a category, a name, and a valid HTTP(S) URL." };
+      if (!validUrl(url)) {
+        return { message: "Please provide a valid HTTP(S) URL." };
       }
-      const duplicate = links.some(item =>
-        item.category.toLowerCase() === category.toLowerCase() &&
-        item.name.toLowerCase() === name.toLowerCase()
-      );
-      if (duplicate) return { message: "That link already exists in this category." };
-      links.push({ category, name, url });
+      if (links.some(item => String(item.url).toLowerCase() === url.toLowerCase())) {
+        return { message: "That URL is already in Solaris Links." };
+      }
+      links.push({ category: LINKS_CATEGORY, url });
       await this.saveLinks(links);
-      return { message: `Added **${name}** to **${category}**.` };
+      return { message: `Added ${url} to **Solaris Links:**.` };
     }
 
     if (action === "remove") {
-      if (!category || !name) return { message: "Provide the category and link name to remove." };
-      const index = links.findIndex(item =>
-        item.category.toLowerCase() === category.toLowerCase() &&
-        item.name.toLowerCase() === name.toLowerCase()
-      );
-      if (index === -1) return { message: "I couldn't find that link." };
+      if (!url) return { message: "Provide the URL to remove." };
+      const index = links.findIndex(item => String(item.url).toLowerCase() === url.toLowerCase());
+      if (index === -1) return { message: "I couldn't find that URL in Solaris Links." };
       const [removed] = links.splice(index, 1);
       await this.saveLinks(links);
-      return { message: `Removed **${removed.name}** from **${removed.category}**.` };
+      return { message: `Removed ${removed.url} from **Solaris Links:**.` };
     }
 
     if (action === "list") {
-      const filter = String(getOption(options, "category") ?? "").trim();
-      const selected = filter
-        ? links.filter(item => item.category.toLowerCase() === filter.toLowerCase())
-        : links;
-      if (!selected.length) return { message: filter ? `No links found in **${filter}**.` : "No links have been added yet." };
-      const grouped = this.groupLinks(selected);
-      const lines = Object.entries(grouped).map(([group, items]) =>
-        `**${group}**\n${items.map(item => `• [${item.name}](${item.url})`).join("\n")}`
-      );
-      const text = lines.join("\n\n");
-      return { message: text.length > 1900 ? text.slice(0, 1880) + "\n… (list shortened)" : text };
+      if (!links.length) return { message: "No links have been added yet." };
+      const text = `**Solaris Links:**\\n${links.map(item => String(item.url)).join("\\n")}`;
+      return { message: text.length > 1900 ? text.slice(0, 1880) + "\\n… (list shortened)" : text };
     }
 
     return { message: "Unknown subcommand." };
@@ -216,28 +202,15 @@ export class BotState {
 
   async dmLinks(userId) {
     const links = await this.readLinks();
-    if (!links.length) {
-      await this.sendDiscord("/users/@me/channels", { recipient_id: userId })
-        .then(channel => this.sendDiscord(`/channels/${channel.id}/messages`, { content: "The link directory is empty right now." }));
-      return;
-    }
-
-    const groups = this.groupLinks(links);
-    const chunks = [];
-    let current = "**Here are the links:**\n\n";
-    for (const [category, items] of Object.entries(groups)) {
-      const section = `**${category}**\n${items.map(item => `[ ${item.name} ](${item.url})`).join("\n")}\n\n`;
-      if (current.length + section.length > 1850) {
-        chunks.push(current);
-        current = "";
-      }
-      current += section;
-    }
-    if (current.trim()) chunks.push(current);
+    const content = links.length
+      ? `**Solaris Links:**\\n${links.map(item => String(item.url)).join("\\n")}`
+      : "The Solaris Links list is empty right now.";
 
     const channel = await this.sendDiscord("/users/@me/channels", { recipient_id: userId });
-    for (const content of chunks) {
-      await this.sendDiscord(`/channels/${channel.id}/messages`, { content });
+    const chunks = [];
+    for (let i = 0; i < content.length; i += 1900) chunks.push(content.slice(i, i + 1900));
+    for (const chunk of chunks) {
+      await this.sendDiscord(`/channels/${channel.id}/messages`, { content: chunk });
     }
   }
 
