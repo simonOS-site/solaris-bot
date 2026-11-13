@@ -139,6 +139,7 @@ export class BotState {
     this.sessionId = null;
     this.resumeUrl = null;
     this.reconnectTimer = null;
+    this.presenceTimer = null;
   }
 
   async fetch(request) {
@@ -275,6 +276,8 @@ export class BotState {
   scheduleReconnect() {
     if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
     this.heartbeatTimer = null;
+    if (this.presenceTimer) clearInterval(this.presenceTimer);
+    this.presenceTimer = null;
     this.socket = null;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => this.connectGateway(), 5000);
@@ -327,6 +330,13 @@ export class BotState {
       console.log("[gateway] READY as", packet.d.user?.username);
       this.sessionId = packet.d.session_id;
       this.resumeUrl = packet.d.resume_gateway_url + "?v=10&encoding=json";
+      await this.updatePresence();
+      if (this.presenceTimer) clearInterval(this.presenceTimer);
+      this.presenceTimer = setInterval(() => {
+        this.updatePresence().catch(error => {
+          console.error("[presence] Update failed:", error?.message || error);
+        });
+      }, 30_000);
       return;
     }
 
@@ -364,6 +374,33 @@ export class BotState {
           allowed_mentions: { parse: [] }
         }).catch(() => {});
       }
+    }
+  }
+
+  async updatePresence() {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+
+    try {
+      const response = await fetch("https://solaris.sdevs.workers.dev/api/discord-presence");
+      if (!response.ok) throw new Error(`Solaris API returned ${response.status}`);
+
+      const data = await response.json();
+      if (typeof data.status !== "string" || !data.status.trim()) {
+        throw new Error("Solaris API returned an invalid status");
+      }
+
+      this.sendGateway({
+        op: 3,
+        d: {
+          since: null,
+          activities: [{ name: data.status.trim().slice(0, 128), type: 0 }],
+          status: "online",
+          afk: false
+        }
+      });
+      console.log("[presence] Updated activity:", data.status);
+    } catch (error) {
+      console.error("[presence] Solaris API error:", error?.message || error);
     }
   }
 
