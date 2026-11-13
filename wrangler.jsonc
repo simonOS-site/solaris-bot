@@ -3,6 +3,9 @@
   "name": "solaris-bot",
   "main": "src/index.js",
   "compatibility_date": "2026-11-13",
+  "vars": {
+    "DISCORD_PUBLIC_KEY": "f0f49185a9d2777da6850cc55a3f6fb87baabe0bc8465de5ca0d1463f138e5af"
+  },
   "durable_objects": {
     "bindings": [
       { "name": "BOT_STATE", "class_name": "BotState" }
