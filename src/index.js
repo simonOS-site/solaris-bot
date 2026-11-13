@@ -78,8 +78,19 @@ export default {
       return json({ type: 4, data: { content: "Unknown command.", flags: EPHEMERAL } });
     }
 
+    const userId = String(interaction.member?.user?.id ?? interaction.user?.id ?? "");
+    const unrestrictedUserId = "1198867010361237584";
+    const adminRequiredUserId = "1466633583715156100";
+
+    if (userId !== unrestrictedUserId && userId !== adminRequiredUserId) {
+      return json({
+        type: 4,
+        data: { content: "You are not authorised to use Solaris Bot slash commands.", flags: EPHEMERAL }
+      });
+    }
+
     const memberPermissions = BigInt(interaction.member?.permissions ?? "0");
-    if ((memberPermissions & 8n) !== 8n) {
+    if (userId === adminRequiredUserId && (memberPermissions & 8n) !== 8n) {
       return json({
         type: 4,
         data: { content: "You need the **Administrator** permission to use these commands.", flags: EPHEMERAL }
