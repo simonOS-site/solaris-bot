@@ -292,6 +292,7 @@ export class BotState {
       const message = packet.d;
       if (message.author?.bot || !message.content) return;
       if (message.content.trim().toLowerCase() !== "!sites") return;
+      if (message.channel_id !== "1570329383414272042") return;
       try {
         await this.dmLinks(message.author.id);
         await this.sendDiscord(`/channels/${message.channel_id}/messages`, {
