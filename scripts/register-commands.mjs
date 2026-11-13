@@ -34,6 +34,22 @@ const commands = [{
   ]
 }];
 
+// Remove outdated server-specific commands so Discord uses the current global definitions.
+const guildId = "1570325151910731827";
+const cleanup = await fetch(`https://discord.com/api/v10/applications/${appId}/guilds/${guildId}/commands`, {
+  method: "PUT",
+  headers: {
+    authorization: `Bot ${token}`,
+    "content-type": "application/json"
+  },
+  body: JSON.stringify([])
+});
+
+if (!cleanup.ok) {
+  console.error("Could not clear outdated server commands:", cleanup.status, await cleanup.text());
+  process.exit(1);
+}
+
 const response = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {
   method: "PUT",
   headers: {
