@@ -173,8 +173,8 @@ export class BotState {
 
     if (action === "list") {
       if (!links.length) return { message: "No links have been added yet." };
-      const text = `**Solaris Links:**\\n${links.map(item => String(item.url)).join("\\n")}`;
-      return { message: text.length > 1900 ? text.slice(0, 1880) + "\\n… (list shortened)" : text };
+      const text = `**Solaris Links:**\n${links.map(item => String(item.url)).join("\n")}`;
+      return { message: text.length > 1900 ? text.slice(0, 1880) + "\n… (list shortened)" : text };
     }
 
     return { message: "Unknown subcommand." };
@@ -203,7 +203,7 @@ export class BotState {
   async dmLinks(userId) {
     const links = await this.readLinks();
     const content = links.length
-      ? `**Solaris Links:**\\n${links.map(item => String(item.url)).join("\\n")}`
+      ? `**Solaris Links:**\n${links.map(item => String(item.url)).join("\n")}`
       : "The Solaris Links list is empty right now.";
 
     const channel = await this.sendDiscord("/users/@me/channels", { recipient_id: userId });
