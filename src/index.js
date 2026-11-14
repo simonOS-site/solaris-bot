@@ -393,7 +393,7 @@ export class BotState {
         op: 3,
         d: {
           since: null,
-          activities: [{ name: data.status.trim().slice(0, 128), type: 0 }],
+          activities: [{ name: `<:solaris:1570987515182059590> ${data.status.trim()}`.slice(0, 128), type: 0 }],
           status: "online",
           afk: false
         }
