@@ -44,10 +44,8 @@ async function buildSolarisEmbed(subcommand) {
   }
 
   if (subcommand === "online") {
-    const data = await fetchSolaris("/api/discord-presence");
-    const status = typeof data.status === "string" && data.status.trim()
-      ? data.status.trim()
-      : `Currently ${Number(data.online) || 0} People online`;
+    const data = await fetchSolaris("/api/status");
+    const status = `Currently ${Number(data.online) || 0} People online`;
     return solarisEmbed("Solaris Online", status, [
       { name: "Online Users", value: String(data.online ?? "Unknown"), inline: true }
     ]);
@@ -79,9 +77,9 @@ async function buildSolarisEmbed(subcommand) {
       const name = String(game.name ?? "Untitled game");
       const category = String(game.category ?? "Uncategorised");
       const detail = String(game.description ?? "").slice(0, 180);
-      return `**${index + 1}. ${name}** · ${category}${detail ? `\\n${detail}` : ""}`;
-    }).join("\\n\\n");
-    const extra = games.length > 20 ? `\\n\\n…and ${games.length - 20} more.` : "";
+      return `**${index + 1}. ${name}** · ${category}${detail ? `\n${detail}` : ""}`;
+    }).join("\n\n");
+    const extra = games.length > 20 ? `\n\n…and ${games.length - 20} more.` : "";
     return solarisEmbed("Solaris Community Games", (description + extra).slice(0, 4096));
   }
 
