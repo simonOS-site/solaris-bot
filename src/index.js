@@ -2,6 +2,110 @@ const DISCORD_API = "https://discord.com/api/v10";
 const EPHEMERAL = 64;
 const INTENTS = 1 | 512 | 32768; // GUILDS, GUILD_MESSAGES, MESSAGE_CONTENT
 const LINKS_CATEGORY = "Solaris Links:";
+const SOLARIS_API = "https://solaris.sdevs.workers.dev";
+const SOLARIS_COLOR = 0xF5C400;
+
+async function fetchSolaris(endpoint) {
+  const response = await fetch(`${SOLARIS_API}${endpoint}`, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(10_000)
+  });
+  if (!response.ok) throw new Error(`Solaris API returned HTTP ${response.status}`);
+  return response.json();
+}
+
+function solarisEmbed(title, description, fields = []) {
+  return {
+    title,
+    description,
+    color: SOLARIS_COLOR,
+    fields,
+    timestamp: new Date().toISOString(),
+    footer: { text: "Solaris API" }
+  };
+}
+
+async function buildSolarisEmbed(subcommand) {
+  if (subcommand === "health") {
+    const data = await fetchSolaris("/api/health");
+    return solarisEmbed("Solaris Health", data.status === "healthy" ? "Solaris is healthy." : "Solaris health check returned an unexpected status.", [
+      { name: "Status", value: String(data.status ?? "Unknown"), inline: true },
+      { name: "Service", value: String(data.service ?? "Solaris"), inline: true }
+    ]);
+  }
+
+  if (subcommand === "status") {
+    const data = await fetchSolaris("/api/status");
+    return solarisEmbed("Solaris Status", `**${data.status ?? "Unknown"}**`, [
+      { name: "Online Users", value: String(data.online ?? "Unknown"), inline: true },
+      { name: "Version", value: String(data.version ?? "Unavailable"), inline: true },
+      { name: "Worker Build", value: String(data.buildId ?? "Unavailable"), inline: false }
+    ]);
+  }
+
+  if (subcommand === "online") {
+    const data = await fetchSolaris("/api/discord-presence");
+    const status = typeof data.status === "string" && data.status.trim()
+      ? data.status.trim()
+      : `Currently ${Number(data.online) || 0} People online`;
+    return solarisEmbed("Solaris Online", status, [
+      { name: "Online Users", value: String(data.online ?? "Unknown"), inline: true }
+    ]);
+  }
+
+  if (subcommand === "stats") {
+    const data = await fetchSolaris("/api/stats");
+    return solarisEmbed("Solaris Statistics", "Live statistics from the Solaris API.", [
+      { name: "Online Users", value: String(data.online ?? "Unknown"), inline: true },
+      { name: "Published Games", value: String(data.sharedGames ?? "Unknown"), inline: true },
+      { name: "Version", value: String(data.version ?? "Unavailable"), inline: false },
+      { name: "Worker Build", value: String(data.buildId ?? "Unavailable"), inline: false }
+    ]);
+  }
+
+  if (subcommand === "version") {
+    const data = await fetchSolaris("/api/version");
+    return solarisEmbed("Solaris Version", String(data.version ?? "Unavailable"), [
+      { name: "Worker Build", value: String(data.buildId ?? "Unavailable"), inline: false }
+    ]);
+  }
+
+  if (subcommand === "games") {
+    const games = await fetchSolaris("/api/games");
+    if (!Array.isArray(games) || games.length === 0) {
+      return solarisEmbed("Solaris Community Games", "No published community games were found.");
+    }
+    const description = games.slice(0, 20).map((game, index) => {
+      const name = String(game.name ?? "Untitled game");
+      const category = String(game.category ?? "Uncategorised");
+      const detail = String(game.description ?? "").slice(0, 180);
+      return `**${index + 1}. ${name}** · ${category}${detail ? `\\n${detail}` : ""}`;
+    }).join("\\n\\n");
+    const extra = games.length > 20 ? `\\n\\n…and ${games.length - 20} more.` : "";
+    return solarisEmbed("Solaris Community Games", (description + extra).slice(0, 4096));
+  }
+
+  throw new Error("Unknown Solaris command.");
+}
+
+async function handleSolarisInteraction(interaction, env) {
+  let embeds;
+  try {
+    const subcommand = interaction.data.options?.[0]?.name;
+    embeds = [await buildSolarisEmbed(subcommand)];
+  } catch (error) {
+    embeds = [solarisEmbed("Solaris API Unavailable", error?.message || "The Solaris API could not be reached.")];
+  }
+
+  const response = await fetch(`${DISCORD_API}/webhooks/${env.DISCORD_APPLICATION_ID || interaction.application_id}/${interaction.token}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ embeds, allowed_mentions: { parse: [] } })
+  });
+  if (!response.ok) {
+    console.error("[solaris-command] Discord follow-up failed:", response.status, await response.text());
+  }
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -62,7 +166,7 @@ function validUrl(value) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, executionCtx) {
     const url = new URL(request.url);
 
     if (url.pathname === "/") {
@@ -81,7 +185,17 @@ export default {
 
     const interaction = await request.json();
     if (interaction.type === 1) return json({ type: 1 });
-    if (interaction.type !== 2 || interaction.data?.name !== "links") {
+    if (interaction.type !== 2) {
+      return json({ type: 4, data: { content: "Unsupported interaction.", flags: EPHEMERAL } });
+    }
+
+    // Public Solaris information commands are available to everyone.
+    if (interaction.data?.name === "solaris") {
+      executionCtx.waitUntil(handleSolarisInteraction(interaction, env));
+      return json({ type: 5 });
+    }
+
+    if (interaction.data?.name !== "links") {
       return json({ type: 4, data: { content: "Unknown command.", flags: EPHEMERAL } });
     }
 
@@ -381,24 +495,22 @@ export class BotState {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
 
     try {
-      const response = await fetch("https://solaris.sdevs.workers.dev/api/discord-presence");
-      if (!response.ok) throw new Error(`Solaris API returned ${response.status}`);
-
-      const data = await response.json();
-      if (typeof data.status !== "string" || !data.status.trim()) {
-        throw new Error("Solaris API returned an invalid status");
+      const data = await fetchSolaris("/api/status");
+      if (!Number.isFinite(Number(data.online))) {
+        throw new Error("Solaris API returned an invalid online count");
       }
+      const status = `Currently ${Number(data.online)} People online`;
 
       this.sendGateway({
         op: 3,
         d: {
           since: null,
-          activities: [{ name: `<:solaris:1570987515182059590> ${data.status.trim()}`.slice(0, 128), type: 0 }],
+          activities: [{ name: status.slice(0, 128), type: 0 }],
           status: "online",
           afk: false
         }
       });
-      console.log("[presence] Updated activity:", data.status);
+      console.log("[presence] Updated activity:", status);
     } catch (error) {
       console.error("[presence] Solaris API error:", error?.message || error);
     }
