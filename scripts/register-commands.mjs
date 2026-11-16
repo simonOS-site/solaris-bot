@@ -6,8 +6,21 @@ if (!token || !appId) {
   process.exit(1);
 }
 
-const commands = [{
-  name: "links",
+const commands = [
+  {
+    name: "solaris",
+    description: "Get live information from Solaris",
+    options: [
+      { type: 1, name: "status", description: "Check Solaris status" },
+      { type: 1, name: "online", description: "Show the current online user count" },
+      { type: 1, name: "stats", description: "Show Solaris statistics" },
+      { type: 1, name: "version", description: "Show the current Solaris version" },
+      { type: 1, name: "games", description: "List published community games" },
+      { type: 1, name: "health", description: "Check Solaris API health" }
+    ]
+  },
+  {
+    name: "links",
   description: "Manage the Solaris Links directory",
   options: [
     {
@@ -64,4 +77,4 @@ if (!response.ok) {
   console.error("Command registration failed:", response.status, body);
   process.exit(1);
 }
-console.log("Registered /links add, /links remove, and /links list.");
+console.log("Registered public /solaris commands and protected /links commands.");
